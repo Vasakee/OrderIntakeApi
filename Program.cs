@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+using OrderIntakeApi;
 using OrderIntakeApi.Controllers;
 using OrderIntakeApi.Data;
 using OrderIntakeApi.Observability;
@@ -63,7 +65,17 @@ builder.Services.AddHttpClient<IPaymentClient, HttpPaymentClient>((sp, client) =
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Order Intake API",
+        Version = "v1",
+        Description = "Resilient, observable, and concurrency-safe Order Intake API (.NET 8)"
+    });
+    options.SchemaFilter<SwaggerExampleSchemaFilter>();
+    options.OperationFilter<SwaggerExampleOperationFilter>();
+});
 
 var app = builder.Build();
 
@@ -75,11 +87,13 @@ using (var scope = app.Services.CreateScope())
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Order Intake API v1");
+    c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.List);
+    c.DisplayRequestDuration();
+});
 
 app.MapGet("/health", async (
     OrderDbContext db,
